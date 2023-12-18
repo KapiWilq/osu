@@ -11,20 +11,20 @@ using osu.Game.Replays;
 
 namespace osu.Game.Rulesets.Mods
 {
-    public abstract class ModAutoplay : Mod, ICreateReplayData
+    public abstract class ModAutoPlus : Mod, ICreateReplayData
     {
-        public override string Name => "Autoplay";
-        public override string Acronym => "AT";
+        public override string Name => "Auto+";
+        public override string Acronym => "AU";
         public override IconUsage? Icon => OsuIcon.ModAuto;
         public override ModType Type => ModType.Automation;
-        public override LocalisableString Description => "Watch a perfect automated play through the song.";
+        public override LocalisableString Description => "Watch a perfected automated play through the song.";
         public override double ScoreMultiplier => 1;
 
         public sealed override bool UserPlayable => false;
         public sealed override bool ValidForMultiplayer => false;
         public sealed override bool ValidForMultiplayerAsFreeMod => false;
 
-        public override Type[] IncompatibleMods => new[] { typeof(ModAutoPlus), typeof(ModCinema), typeof(ModRelax), typeof(ModAdaptiveSpeed), typeof(ModTouchDevice) };
+        public override Type[] IncompatibleMods => new[] { typeof(ModAutoplay), typeof(ModCinema), typeof(ModRelax), typeof(ModAdaptiveSpeed), typeof(ModTouchDevice) };
 
         public override bool HasImplementation => GetType().GenericTypeArguments.Length == 0;
 
