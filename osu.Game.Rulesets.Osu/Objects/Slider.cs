@@ -123,6 +123,57 @@ namespace osu.Game.Rulesets.Osu.Objects
         /// </summary>
         public double TickDistanceMultiplier = 1;
 
+        public IEnumerable<SliderTick> Ticks
+        {
+            get
+            {
+                if (TickDistance == 0) yield break;
+
+                double length = Path.Distance;
+                double tickDistance = System.Math.Min(TickDistance, length);
+                double repeatDuration = SpanDuration;
+
+                double minDistanceFromEnd = Velocity * 10;
+
+                for (int repeat = 0; repeat <= repeatCount; repeat++)
+                {
+                    double repeatStartTime = StartTime + repeat * SpanDuration;
+                    bool reversed = repeat % 2 == 1;
+
+                    for (double d = tickDistance; d <= length; d += tickDistance)
+                    {
+                        if (d > length - minDistanceFromEnd) break;
+
+                        double distanceProgress = d / length;
+                        double timeProgress = reversed ? 1 - distanceProgress : distanceProgress;
+
+                        yield return new SliderTick
+                        {
+                            StartTime = repeatStartTime + timeProgress * repeatDuration,
+                            Position = StackedPosition + Path.PositionAt(distanceProgress)
+                        };
+                    }
+                }
+            }
+        }
+
+        public IEnumerable<SliderRepeat> Repeats
+        {
+            get
+            {
+                for (int repeat = 1; repeat <= repeatCount; repeat++)
+                {
+                    double repeatTime = repeat * SpanDuration;
+                    double startTime = StartTime;
+                    yield return new SliderRepeat(this)
+                    {
+                        StartTime = repeatTime + startTime,
+                        Position = StackedPosition + this.CurvePositionAt(repeatTime / Duration)
+                    };
+                }
+            }
+        }
+
         /// <summary>
         /// If <see langword="false"/>, <see cref="Slider"/>'s judgement is fully handled by its nested <see cref="HitObject"/>s.
         /// If <see langword="true"/>, this <see cref="Slider"/> will be judged proportionally to the number of nested <see cref="HitObject"/>s hit.
