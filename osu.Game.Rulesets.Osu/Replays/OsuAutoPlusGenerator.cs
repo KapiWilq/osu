@@ -40,10 +40,19 @@ namespace osu.Game.Rulesets.Osu.Replays
 
         #region Generator
 
+        /// <summary>
+        /// Which button (left or right) to use for the current hitobject.
+        /// Even means LMB will be used to click, odd means RMB will be used.
+        /// This keeps track of the button previously used for alt/singletap logic.
+        /// </summary>
+        private int buttonIndex;
+
         public override Replay Generate()
         {
             if (Beatmap.HitObjects.Count == 0)
                 return Replay;
+
+            buttonIndex = 0;
 
             AddFrameToReplay(new OsuReplayFrame(Beatmap.HitObjects[0].StartTime, new Vector2(Beatmap.HitObjects[0].StackedPosition.X, Beatmap.HitObjects[0].StackedPosition.Y)));
 
@@ -71,6 +80,8 @@ namespace osu.Game.Rulesets.Osu.Replays
                 calcSpinnerStartPosAndDirection(((OsuReplayFrame)Frames[^1]).Position, out startPosition);
             }
 
+            buttonIndex++;
+
             // Add frames to click the hitobject.
             addHitObjectClickFrames(h, startPosition);
         }
@@ -81,7 +92,11 @@ namespace osu.Game.Rulesets.Osu.Replays
 
         private void addHitObjectClickFrames(OsuHitObject h, Vector2 startPosition)
         {
-            var startFrame = new OsuReplayFrame(h.StartTime, new Vector2(h.StackedPosition.X, h.StackedPosition.Y), OsuAction.LeftButton);
+            // Time to insert the first frame which clicks the object
+            // Here we mainly need to determine which button to use
+            var action = buttonIndex % 2 == 0 ? OsuAction.LeftButton : OsuAction.RightButton;
+
+            var startFrame = new OsuReplayFrame(h.StartTime, new Vector2(h.StackedPosition.X, h.StackedPosition.Y), action);
             var endFrame = new OsuReplayFrame(h.GetEndTime(), new Vector2(h.StackedEndPosition.X, h.StackedEndPosition.Y));
 
             // Decrement because we want the previous frame, not the next one.
@@ -100,9 +115,11 @@ namespace osu.Game.Rulesets.Osu.Replays
                 if (previousActions.Any())
                 {
                     // Force "no-click" frame if there is already an action. Otherwise we can just keep the same input.
-                    if (previousActions.Contains(OsuAction.LeftButton))
+                    if (previousActions.Contains(action))
                     {
-                        AddFrameToReplay(new OsuReplayFrame(h.StartTime, new Vector2(h.StackedPosition.X, h.StackedPosition.Y)));
+                        action = action == OsuAction.LeftButton ? OsuAction.RightButton : OsuAction.LeftButton;
+                        startFrame.Actions.Clear();
+                        startFrame.Actions.Add(action);
                     }
 
                     // Edge case (which will be explained later) when there are overlapping spinners in a map - remove future frames to not overload the game and replay itself.
@@ -123,7 +140,7 @@ namespace osu.Game.Rulesets.Osu.Replays
                         if (j < Frames.Count - 1 || frame.Actions.SequenceEqual(previousActions))
                         {
                             frame.Actions.Clear();
-                            frame.Actions.Add(OsuAction.LeftButton);
+                            frame.Actions.Add(action);
                         }
                     }
                 }
@@ -135,7 +152,7 @@ namespace osu.Game.Rulesets.Osu.Replays
             // the redundant conversion from RPM to rad/ms is here for ease of testing custom SPM specs.
             const float spin_rpm = 0.05f / (2 * MathF.PI) * 60000;
             float radsPerMillisecond = MathUtils.DegreesToRadians(spin_rpm * 360) / 60000;
-            float timeRequiredForFullSpin = 2 * MathF.PI / radsPerMillisecond;
+            // float timeRequiredForFullSpin = 2 * MathF.PI / radsPerMillisecond;
 
             switch (h)
             {
@@ -148,8 +165,9 @@ namespace osu.Game.Rulesets.Osu.Replays
 
                     double t;
                     double previousFrame = h.StartTime;
-                    double theoreticalEndTime = h.StartTime + ((spinner.SpinsRequiredForBonus + spinner.MaximumBonusSpins + 1) * timeRequiredForFullSpin);
-                    double endTime = (h.StartTime + spinner.EndTime) < theoreticalEndTime ? h.StartTime + spinner.EndTime : theoreticalEndTime;
+                    // double theoreticalEndTime = h.StartTime + ((spinner.SpinsRequiredForBonus + spinner.MaximumBonusSpins + 1) * timeRequiredForFullSpin);
+                    // double endTime = (h.StartTime + spinner.EndTime) < theoreticalEndTime ? h.StartTime + spinner.EndTime : theoreticalEndTime;
+                    double endTime = spinner.EndTime;
 
                     for (double nextFrame = h.StartTime + GetFrameDelay(h.StartTime); nextFrame < endTime; nextFrame += GetFrameDelay(nextFrame))
                     {
@@ -157,7 +175,7 @@ namespace osu.Game.Rulesets.Osu.Replays
                         angle += (float)t * radsPerMillisecond;
 
                         Vector2 pos = SPINNER_CENTRE + CirclePosition(angle, SPIN_RADIUS);
-                        AddFrameToReplay(new OsuReplayFrame(nextFrame, new Vector2(pos.X, pos.Y), OsuAction.LeftButton));
+                        AddFrameToReplay(new OsuReplayFrame(nextFrame, new Vector2(pos.X, pos.Y), action));
 
                         previousFrame = nextFrame;
                     }
@@ -175,15 +193,15 @@ namespace osu.Game.Rulesets.Osu.Replays
                 case Slider slider:
                     foreach (SliderTick tick in slider.Ticks)
                     {
-                        AddFrameToReplay(new OsuReplayFrame(tick.StartTime, new Vector2(tick.Position.X, tick.Position.Y), OsuAction.LeftButton));
+                        AddFrameToReplay(new OsuReplayFrame(tick.StartTime, new Vector2(tick.Position.X, tick.Position.Y), action));
                     }
 
                     foreach (SliderRepeat repeat in slider.Repeats)
                     {
-                        AddFrameToReplay(new OsuReplayFrame(repeat.StartTime, new Vector2(repeat.Position.X, repeat.Position.Y), OsuAction.LeftButton));
+                        AddFrameToReplay(new OsuReplayFrame(repeat.StartTime, new Vector2(repeat.Position.X, repeat.Position.Y), action));
                     }
 
-                    // AddFrameToReplay(new OsuReplayFrame(slider.EndTime, new Vector2(slider.StackedEndPosition.X, slider.StackedEndPosition.Y), OsuAction.LeftButton));
+                    AddFrameToReplay(new OsuReplayFrame(slider.EndTime, new Vector2(slider.StackedEndPosition.X, slider.StackedEndPosition.Y)));
                     break;
             }
 
