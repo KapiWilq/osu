@@ -22,7 +22,7 @@ namespace osu.Game.Rulesets.Osu.Replays
         /// </summary>
         protected static readonly Vector2 SPINNER_CENTRE = OsuPlayfield.BASE_SIZE / 2;
 
-        public const float SPIN_RADIUS = 0.5f;
+        public const float SPIN_RADIUS = 1;
 
         #endregion
 
@@ -78,7 +78,7 @@ namespace osu.Game.Rulesets.Osu.Replays
         /// </summary>
         /// <param name="time">The time of the previous frame.</param>
         protected double GetFrameDelay(double time)
-            => ApplyModsToRate(time, 1000.0 / 250);
+            => ApplyModsToRate(time, 1000.0 / 125);
 
         private class ReplayFrameComparer : IComparer<ReplayFrame>
         {
